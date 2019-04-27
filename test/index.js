@@ -1,6 +1,13 @@
+import {
+  buf2hex,
+  toBitsFromUint8Array,
+  extractChildren
+} from '../src/utils.js'
+import MediaTrack from '../src/MediaTrack.js'
+
 let ftypSize = 0
 
-const url = 'http://127.0.0.1:8080/movie_300.mp4'
+const url = 'http://127.0.0.1:8080/test/video/movie_300.mp4'
 var oReq = new XMLHttpRequest();
 oReq.onload = function (e) {
   var arraybuffer = oReq.response;
@@ -77,6 +84,10 @@ function requsetMoov(moovSize) {
       .filter(child => child.type === 'trak')
       .map(trakBox => new MediaTrack(trakBox));
     console.log('tracks:', tracks)
+    const movieTrack = tracks[0]
+    const {entrySize: size, offset} = movieTrack.getSampleSizeAndOffset(300)
+    console.log('10s 时的 sample 大小和偏移量为：', size, offset)
+    requestSampleData(offset, size)
 
     // extractSample(arraybuffer, ftypSize)
   }
@@ -117,4 +128,17 @@ function parseMoov(moovBuffer) {
   moov.children = extractChildren(moov)
   console.table(moov)
   return moov
+}
+
+function requestSampleData(offset, size) {
+  var oReq = new XMLHttpRequest();
+  oReq.onload = function (e) {
+    var arraybuffer = oReq.response;
+    console.log(arraybuffer)
+    console.log(Array.from(new Uint8Array(arraybuffer)).map(n => ('00000000' + n.toString(2)).slice(-8)).join(''))
+  }
+  oReq.open("GET", url);
+  oReq.setRequestHeader('Range', `bytes=${offset}-${offset + size - 1}`)
+  oReq.responseType = "arraybuffer";
+  oReq.send();
 }

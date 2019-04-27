@@ -1,38 +1,44 @@
 import {
   toDigitFromUint8Array,
-  toTextFromUnit8Array,
   toBitsFromUint8Array,
   decodeUnicode,
-} from './utils'
+} from './utils.js'
 
 export default class MediaTrack {
   constructor(trakBox) {
-    this.size = trakBox.size;
-    this.data = trakBox.data;
-    this.box = trakBox;
+    this.size = trakBox.size
+    this.data = trakBox.data
+    this.box = trakBox
 
-    this.metadata = this._getMetadata(trakBox);
+    this.metadata = this._getMetadata(trakBox)
 
     this.type = this._getType(trakBox)
     this.timeTable = this._parseSTTS(this._getSampleTableBox('stts'))
+    // format time table
+    this._formattedTimeTable = this._formatTimeTable(this.timeTable)
     this.syncTable = this._parseSTSS(this._getSampleTableBox('stss'))
     this.sizeTable = this._parseSTSZ(this._getSampleTableBox('stsz'))
     this.chunkTable = this._parseSTSC(this._getSampleTableBox('stsc'))
     this.chunkOffsetBox = this._parseSTCO(this._getSampleTableBox('stco'))
   }
 
-  getSampleData(timestamp) {
-
+  getSampleSizeAndOffset(timestamp) {
+    const arr = this._formattedTimeTable
+    let i = 0
+    while (timestamp * this.metadata.timescale > arr[i]) {
+      i++
+    }
+    return this.sizeTable.entries[i]
   }
 
   _getMetadata() {
     const metadata = {}
-    
+
     const mdhdBox = this.box.children
       .filter(child => child.type === 'mdia')[0].children
       .filter(child => child.type === 'mdhd')[0]
     const mdhdBoxData = mdhdBox.data
-    
+
     const version = mdhdBoxData[8]
 
     if (version === 1) {
@@ -40,25 +46,29 @@ export default class MediaTrack {
       metadata.modificationTime = toDigitFromUint8Array(mdhdBoxData.slice(20, 28))
       metadata.timescale = toDigitFromUint8Array(mdhdBoxData.slice(28, 32))
       metadata.duration = toDigitFromUint8Array(mdhdBoxData.slice(32, 40))
-      // ISO-639-2/T language code
-      metadata.language = toTextFromUnit8Array(mdhdBoxData.slice(40, 42))
     } else {
       metadata.creationTime = toDigitFromUint8Array(mdhdBoxData.slice(12, 16))
       metadata.modificationTime = toDigitFromUint8Array(mdhdBoxData.slice(16, 20))
       metadata.timescale = toDigitFromUint8Array(mdhdBoxData.slice(20, 24))
       metadata.duration = toDigitFromUint8Array(mdhdBoxData.slice(24, 28))
-      // ISO-639-2/T language code
+    }
+
+    // ISO-639-2/T language code
+    const getLanguageCode = (version) => {
+      let i = 28
+      if (version === 1) {
+        i = 40
+      }
+
       const langcodes = []
-      const langCodeBits = toBitsFromUint8Array(mdhdBoxData.slice(28, 30))
+      const langCodeBits = toBitsFromUint8Array(mdhdBoxData.slice(i, i + 2))
       langcodes[0] = decodeUnicode('\\u00' + ('00' + (parseInt(langCodeBits.slice(1, 6), 2) + 96).toString(16)).slice(-2))
       langcodes[1] = decodeUnicode('\\u00' + ('00' + (parseInt(langCodeBits.slice(6, 11), 2) + 96).toString(16)).slice(-2))
       langcodes[2] = decodeUnicode('\\u00' + ('00' + (parseInt(langCodeBits.slice(11, 16), 2) + 96).toString(16)).slice(-2))
-      metadata.language = langcodes.join('')
-    }
 
-    const getLanguageCode = (version) => {
-
+      return langcodes.join('')
     }
+    metadata.language = getLanguageCode(version)
 
     return metadata
   }
@@ -79,6 +89,20 @@ export default class MediaTrack {
       .filter(child => child.type === type)[0]
   }
 
+  _formatTimeTable(timeTableArr) {
+    let time = 0
+    const a = []
+
+    timeTableArr.forEach(t => {
+      for (let i = 0; i < t.sampleCount; i++) {
+        time += t.sampleDelta
+        a.push(time)
+      }
+    })
+
+    return a
+  }
+
   _parseSTTS(sttsBox) {
     const sttsBoxData = sttsBox.data
     const entryCount = toDigitFromUint8Array(sttsBoxData.slice(12, 16))
@@ -94,7 +118,7 @@ export default class MediaTrack {
 
   _parseSTSS(stssBox) {
     if (!stssBox) return
-    
+
     const stssBoxData = stssBox.data
     const entryCount = toDigitFromUint8Array(stssBoxData.slice(12, 16))
     const entries = []
