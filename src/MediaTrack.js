@@ -1,6 +1,7 @@
 import {
   toDigitFromUint8Array,
   toBitsFromUint8Array,
+  toTextFromUint8Array,
   decodeUnicode,
 } from './utils.js'
 
@@ -20,7 +21,7 @@ export default class MediaTrack {
     this.sizeTable = this._parseSTSZ(this._getSampleTableBox('stsz'))
     this.chunkTable = this._parseSTSC(this._getSampleTableBox('stsc'))
     this.chunkOffsetBox = this._parseSTCO(this._getSampleTableBox('stco'))
-    this.sampleDescription = this._parseSTSD(trakBox)
+    this.sampleDescription = this._parseSTSD(this._getSampleTableBox('stsd'))
   }
 
   getSampleSizeAndOffset(timestamp) {
@@ -104,8 +105,82 @@ export default class MediaTrack {
     return a
   }
 
-  _parseSTSD(trakBox) {
-    
+  _parseSTSD(stsdBox) {
+    const stsdBoxData = stsdBox.data
+    const entryCount = toDigitFromUint8Array(stsdBoxData.slice(12, 16))
+    const sampleEntries = []
+
+    const parseEntry = (start) => {
+      const entry = {}
+      const visualSampleEntry = {}
+      visualSampleEntry.size = toDigitFromUint8Array(stsdBoxData.slice(start, start + 4))
+      visualSampleEntry.type = toTextFromUint8Array(stsdBoxData.slice(start + 8, start + 12))
+      visualSampleEntry.dataReferenceIndex = toDigitFromUint8Array(stsdBoxData.slice(start + 18, start + 20))
+      visualSampleEntry.width = toDigitFromUint8Array(stsdBoxData.slice(start + 36, start + 38))
+      visualSampleEntry.height = toDigitFromUint8Array(stsdBoxData.slice(start + 38, start + 40))
+      visualSampleEntry.horizresolution = 0x00480000
+      visualSampleEntry.vertresolution = 0x00480000
+      visualSampleEntry.frameCount = 1
+      visualSampleEntry.compressorName = ''
+      visualSampleEntry.depth = 0x0018
+      entry.visualSampleEntry = visualSampleEntry
+
+      // avcConfigurationBoxStart
+      let acbs = 0
+      stsdBoxData.forEach((byte, index) => {
+        if (byte === 255 && stsdBoxData[index - 1] === 255) {
+          acbs = index + 1
+        }
+      })
+      const avcConfigurationBox = {}
+      avcConfigurationBox.size = toDigitFromUint8Array(stsdBoxData.slice(acbs, acbs + 4))
+      avcConfigurationBox.type = toTextFromUint8Array(stsdBoxData.slice(acbs + 4, acbs + 8))
+      avcConfigurationBox.version = 1
+      avcConfigurationBox.avcProfileIndication = toDigitFromUint8Array(stsdBoxData.slice(acbs + 9, acbs + 10))
+      avcConfigurationBox.profileCompatibility = toDigitFromUint8Array(stsdBoxData.slice(acbs + 10, acbs + 11))
+      avcConfigurationBox.avcLevelIndication = toDigitFromUint8Array(stsdBoxData.slice(acbs + 11, acbs + 12))
+      avcConfigurationBox.lengthSizeMinusOne = ''
+      const spsCount = avcConfigurationBox.numOfSequenceParameterSets = Number(toBitsFromUint8Array(stsdBoxData.slice(acbs + 13, acbs + 14)).slice(-5), 2)
+      const spss = []
+      let idx = acbs + 14
+      for (let i = 0; i < spsCount; i++) {
+        const sps = {}
+        sps.length = toDigitFromUint8Array(stsdBoxData.slice(idx, idx + 2))
+        sps.NALUnit = stsdBoxData.slice(idx + 2, idx + 2 + sps.length)
+        idx += 2 + sps.length
+        spss.push(sps)
+      }
+      avcConfigurationBox.spss = spss
+
+      const ppsCount = avcConfigurationBox.numOfPictureParameterSets = toDigitFromUint8Array(stsdBoxData.slice(idx, idx + 1))
+      const ppss = []
+      for (let i = 0; i < ppsCount; i++) {
+        const pps = {}
+        pps.length = toDigitFromUint8Array(stsdBoxData.slice(idx + 1, idx + 1 + 2))
+        pps.NALUnit = stsdBoxData.slice(idx + 1 + 2, idx + 1 + 2 + pps.length)
+        idx += 3 + pps.length
+        ppss.push(pps)
+      }
+      avcConfigurationBox.ppss = ppss
+
+      if (avcConfigurationBox.avcProfileIndication === 100 ||
+        avcConfigurationBox.avcProfileIndication === 110 ||
+        avcConfigurationBox.avcProfileIndication === 122 ||
+        avcConfigurationBox.avcProfileIndication === 144
+      ) {
+        // todo
+      }
+
+      entry.avcConfigurationBox = avcConfigurationBox
+
+      return entry
+    }
+
+    if (entryCount === 1) {
+      sampleEntries.push(parseEntry(16))
+    }
+
+    return sampleEntries
   }
 
   _parseSTTS(sttsBox) {
