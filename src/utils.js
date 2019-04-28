@@ -52,6 +52,10 @@ export function toBitsFromUint8Array(uint8arr) {
   return Array.from(uint8arr).map(n => ('00000000' + n.toString(2)).slice(-8)).join('')
 }
 
+export function toTextFromUint8Array(uint8arr) {
+  return decodeUnicode(Array.from(uint8arr).map(n => ('\\u00' + ('00' + n.toString(16)).slice(-2))).join(''))
+}
+
 export function getSamplePosition(stream) {
   const sampleCount = stream.stszCount
   const chunkCount = stream.stcoCount
@@ -85,4 +89,17 @@ export function getSamplePosition(stream) {
       }
     }
   }
+}
+
+export function fetchRangeData(url, start, size) {
+  return new Promise((resolve) => {
+    var xhr = new XMLHttpRequest();
+    xhr.onload = (e) => {
+      resolve(xhr.response)
+    }
+    xhr.open("GET", url);
+    xhr.setRequestHeader('Range', `bytes=${start}-${start + size - 1}`)
+    xhr.responseType = "arraybuffer";
+    xhr.send();
+  })
 }
