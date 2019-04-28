@@ -133,7 +133,7 @@ function requsetMoov(moovSize) {
       .map(trakBox => new MediaTrack(trakBox))
     console.log('tracks:', tracks)
     const movieTrack = tracks[0]
-    const {entrySize: size, offset} = movieTrack.getSampleSizeAndOffset(300)
+    const {entrySize: size, offset} = movieTrack.getSampleSizeAndOffset(1)
     console.log('10s 时的 sample 大小和偏移量为：', size, offset)
     let mdatBox
     fetchMP4Root(url, (boxes) => {

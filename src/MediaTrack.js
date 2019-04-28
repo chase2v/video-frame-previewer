@@ -20,6 +20,7 @@ export default class MediaTrack {
     this.sizeTable = this._parseSTSZ(this._getSampleTableBox('stsz'))
     this.chunkTable = this._parseSTSC(this._getSampleTableBox('stsc'))
     this.chunkOffsetBox = this._parseSTCO(this._getSampleTableBox('stco'))
+    this.sampleDescription = this._parseSTSD(trakBox)
   }
 
   getSampleSizeAndOffset(timestamp) {
@@ -103,6 +104,10 @@ export default class MediaTrack {
     return a
   }
 
+  _parseSTSD(trakBox) {
+    
+  }
+
   _parseSTTS(sttsBox) {
     const sttsBoxData = sttsBox.data
     const entryCount = toDigitFromUint8Array(sttsBoxData.slice(12, 16))
@@ -140,7 +145,7 @@ export default class MediaTrack {
         const entrySize = toDigitFromUint8Array(stszBoxData.slice(20 + 4 * i, 20 + (i + 1) * 4))
         entries.push({
           entrySize,
-          offset: i && entries[i - 1].offset + entrySize
+          offset: i && entries[i - 1].offset + entries[i - 1].entrySize
         })
       }
     }
