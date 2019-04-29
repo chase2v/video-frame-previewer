@@ -19,8 +19,8 @@ export default class MediaTrack {
     this._formattedTimeTable = this._formatTimeTable(this.timeTable)
     this.syncTable = this._parseSTSS(this._getSampleTableBox('stss'))
     this.sizeTable = this._parseSTSZ(this._getSampleTableBox('stsz'))
-    this.chunkTable = this._parseSTSC(this._getSampleTableBox('stsc'))
     this.chunkOffsetBox = this._parseSTCO(this._getSampleTableBox('stco'))
+    this.chunkTable = this._parseSTSC(this._getSampleTableBox('stsc'))
     this.sampleDescription = this._parseSTSD(this._getSampleTableBox('stsd'))
   }
 
@@ -30,7 +30,19 @@ export default class MediaTrack {
     while (timestamp * this.metadata.timescale > arr[i]) {
       i++
     }
-    return this.sizeTable.entries[i]
+    debugger
+    const chunkIndex = this.chunkTable.chunkIndexes[i].chunkIndex
+    const chunkOffsetIndex = this.chunkTable.chunkIndexes[i].chunkOffsetIndex
+    const chunkOffset = this.chunkOffsetBox[chunkIndex].chunkOffset
+
+    let offset = chunkOffset
+    for (let j = i - chunkOffsetIndex; j < i; j++) {
+      offset += this.sizeTable.entries[j].entrySize
+    }
+    return {
+      offset,
+      size: this.sizeTable.entries[i].entrySize
+    }
   }
 
   _getMetadata() {
@@ -220,7 +232,7 @@ export default class MediaTrack {
         const entrySize = toDigitFromUint8Array(stszBoxData.slice(20 + 4 * i, 20 + (i + 1) * 4))
         entries.push({
           entrySize,
-          offset: i && entries[i - 1].offset + entries[i - 1].entrySize
+          // offset: i && entries[i - 1].offset + entries[i - 1].entrySize
         })
       }
     }
@@ -242,7 +254,27 @@ export default class MediaTrack {
         sampleDescriptionIndex: toDigitFromUint8Array(stscBoxData.slice(16 + 12 * i + 8, 16 + 12 * i + 12)),
       })
     }
-    return entries
+    const chunkIndexes = []
+    let idx = 0
+    for (let i = 0; i < entries.length; i++) {
+      const length = entries[i + 1] ?
+        entries[i + 1].firstChunkIndex - entries[i].firstChunkIndex :
+        this.chunkOffsetBox.length - entries[i].firstChunkIndex + 1
+
+      for (let j = 0; j < length; j++) {
+        for (let k = 0; k < entries[i].samplesPerChunk; k++) {
+          chunkIndexes.push({
+            chunkIndex: idx,
+            chunkOffsetIndex: k
+          })
+        }
+        idx++
+      }
+    }
+    return {
+      entries,
+      chunkIndexes
+    }
   }
 
   _parseSTCO(stcoBox) {
