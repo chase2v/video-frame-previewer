@@ -30,7 +30,6 @@ export default class MediaTrack {
     while (timestamp * this.metadata.timescale > arr[i]) {
       i++
     }
-    debugger
     const chunkIndex = this.chunkTable.chunkIndexes[i].chunkIndex
     const chunkOffsetIndex = this.chunkTable.chunkIndexes[i].chunkOffsetIndex
     const chunkOffset = this.chunkOffsetBox[chunkIndex].chunkOffset
