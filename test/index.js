@@ -18,11 +18,15 @@ fetchMP4Root(url, (boxes) => {
         .filter(child => child.type === 'trak')
         .map(trakBox => new MediaTrack(trakBox))
       movieTrack = tracks[0]
+      console.log('解析出的视频 trak box 为：', movieTrack)
     }
   })
 
   const timestamp = 1
   const {size, offset} = movieTrack.getSampleSizeAndOffset(timestamp)
+  const sps = movieTrack.getSPS()
+  const pps = movieTrack.getPPS()
+  console.log('sps 和 pps 分别为：', sps, pps)
   console.log(`${timestamp}s 时的 sample 大小和偏移量为：`, size, offset)
   fetchRangeData(url, offset, size)
     .then(res => console.log(res))

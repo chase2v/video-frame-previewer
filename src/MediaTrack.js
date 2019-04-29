@@ -44,6 +44,16 @@ export default class MediaTrack {
     }
   }
 
+  // get sequence parameter sets
+  getSPS() {
+    return this.sampleDescription[0].avcConfigurationBox.spss[0]
+  }
+
+  // get picture parameter sets
+  getPPS() {
+    return this.sampleDescription[0].avcConfigurationBox.ppss[0]
+  }
+
   _getMetadata() {
     const metadata = {}
 
