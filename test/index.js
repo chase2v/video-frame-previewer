@@ -22,19 +22,24 @@ fetchMP4Root(url, (boxes) => {
     }
   })
 
-  const timestamp = 1
+  const timestamp = 0
   const {size, offset} = movieTrack.getSampleSizeAndOffset(timestamp)
   const sps = movieTrack.getSPS()
   const pps = movieTrack.getPPS()
-  console.log('sps 和 pps 分别为：', sps, pps)
+  console.log(sps, pps)
+  console.log('sps:', toBitsFromUint8Array(Uint8Array.from(sps.NALUnit)))
+  console.log('pps:', toBitsFromUint8Array(Uint8Array.from(pps.NALUnit)))
   console.log(`${timestamp}s 时的 sample 大小和偏移量为：`, size, offset)
   fetchRangeData(url, offset, size)
-    .then(res => console.log(res))
+    .then(res => {
+      console.log(res)
+      console.log(toBitsFromUint8Array(new Uint8Array(res)))
+    })
 })
 
 /**
  * parse mp4 root
- * 
+ *
  * @param {string} url mp4 url
  * @param {function} cb 回调
  */
