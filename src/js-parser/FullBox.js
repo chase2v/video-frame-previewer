@@ -1,7 +1,7 @@
 import BasicBox from './BasicBox.js'
 import {
   toDigitFromUint8Array,
-} from './utils.js'
+} from '../utils.js'
 
 export default class FullBox extends BasicBox {
   constructor(data) {

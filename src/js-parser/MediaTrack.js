@@ -3,7 +3,7 @@ import {
   toBitsFromUint8Array,
   toTextFromUint8Array,
   decodeUnicode,
-} from './utils.js'
+} from '../utils.js'
 
 export default class MediaTrack {
   constructor(trakBox) {
@@ -24,12 +24,21 @@ export default class MediaTrack {
     this.sampleDescription = this._parseSTSD(this._getSampleTableBox('stsd'))
   }
 
-  getSampleSizeAndOffset(timestamp) {
+  getSampleSizeAndOffset(timestamp, isRAP = false) {
     const arr = this._formattedTimeTable
     let i = 0
     while (timestamp * this.metadata.timescale > arr[i]) {
       i++
     }
+
+    if (isRAP) {
+      i = this.syncTable.reduce((pre, cur) => {
+        if (Math.abs(cur.sampleNumber - i) < Math.abs(pre - i)) return cur.sampleNumber
+        return pre
+      }, this.syncTable[this.syncTable.length - 1].sampleNumber)
+      i--
+    }
+    
     const chunkIndex = this.chunkTable.chunkIndexes[i].chunkIndex
     const chunkOffsetIndex = this.chunkTable.chunkIndexes[i].chunkOffsetIndex
     const chunkOffset = this.chunkOffsetBox[chunkIndex].chunkOffset

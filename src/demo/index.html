@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <h3>Demo-1：实时预览</h3>
+  <canvas id="canvas" width="320" height="240" style="background: #000"></canvas>
+  <form>
+    <label>
+      RAP:
+      <input type="checkbox" checked disabled>
+    </label>
+    
+    <label>
+      视频链接：
+      <input id="url">
+    </label>
+  
+    <label>
+      预览图时间戳（s）：
+      <input id="seconds">
+    </label>
+  
+    <button>获取预览图</button>
+  </form>
+
+  <h3>Demo-2：获取预览拼图</h3>
+
+  <script src="../wasm/web_api.js"></script>
+  <script type="module" src="./index.js"></script>
+</body>
+</html>

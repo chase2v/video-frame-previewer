@@ -1,3 +1,6 @@
+import createBox from './js-parser/createBox.js'
+import BasicBox from './js-parser/BasicBox.js'
+
 export function buf2hex(buffer) { // buffer is an ArrayBuffer
   return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
 }
@@ -102,4 +105,46 @@ export function fetchRangeData(url, start, size) {
     xhr.responseType = "arraybuffer";
     xhr.send();
   })
+}
+/**
+* parse mp4 root
+*
+* @param {string} url mp4 url
+* @param {function} cb 回调
+*/
+export async function fetchMP4Root(url, cb) {
+ let mp4Size = await getMP4Size(url)
+ let i = 0
+ const boxes = []
+ while (i < mp4Size) {
+   let box = await getBoxSizeAndType(url, i)
+   const boxData = await fetchRangeData(url, i, i + box.size - 1)
+   box = createBox(box.type, boxData)
+   boxes.push(box)
+   i += box.size
+ }
+ return Promise.resolve(boxes)
+}
+
+
+async function getMP4Size(url) {
+  return new Promise((resolve) => {
+    var xhr = new XMLHttpRequest()
+    xhr.onreadystatechange = function (e) {
+      if (xhr.readyState === 4 && (xhr.status === 200 || xhr.status === 206)) {
+        const contentRange = xhr.getResponseHeader('content-range')
+        resolve(contentRange.match(/\/(\d+)/)[1])
+      }
+    }
+    xhr.open("GET", url)
+    xhr.setRequestHeader('Range', 'bytes=0-1')
+    xhr.responseType = "arraybuffer"
+    xhr.send()
+  })
+}
+
+async function getBoxSizeAndType(url, start) {
+  const boxData = await fetchRangeData(url, start, 8)
+  const box = new BasicBox(boxData)
+  return box
 }

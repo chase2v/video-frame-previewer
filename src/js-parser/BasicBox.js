@@ -1,7 +1,7 @@
 import {
   toDigitFromUint8Array,
   toTextFromUint8Array
-} from './utils.js'
+} from '../utils.js'
 
 export default class BasicBox {
   constructor(data) {
