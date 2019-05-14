@@ -6,9 +6,13 @@ import {
 } from '../utils.js'
 import MediaTrack from '../js-parser/MediaTrack.js'
 
-Module.onRuntimeInitialized = () => {
-  console.log('Module inited!')
+if (Module) {
   init()
+} else {
+  Module.onRuntimeInitialized = () => {
+    console.log('Module inited!')
+    init()
+  }
 }
 
 function init() {
@@ -26,7 +30,7 @@ function initListeners() {
       
       getSampleData(url, seconds)
         .then(parseSample)
-        .then((imageRawData) => drawImage(320, 240, imageRawData))
+        .then(([imageRawData, width, height]) => drawImage(width, height, imageRawData))
     })
 }
 
@@ -50,6 +54,10 @@ function getSampleData(url = '', seconds = 0) {
       const pps = movieTrack.getPPS()
       const spsUint8 = Uint8Array.from(sps.NALUnit)
       const ppsUint8 = Uint8Array.from(pps.NALUnit)
+      const {
+        width,
+        height,
+      } = movieTrack.metadata;
 
       return fetchRangeData(url, offset, size)
         .then(res => {
@@ -69,7 +77,7 @@ function getSampleData(url = '', seconds = 0) {
             ...sampleData.slice(4),
           ])
 
-          return rt
+          return [rt, width, height];
         })
         .catch(err => {
           console.error(err)
@@ -77,17 +85,17 @@ function getSampleData(url = '', seconds = 0) {
     })
 }
 
-function parseSample(sampleData) {
+function parseSample([sampleData, width, height]) {
   const getPreviewData = Module.cwrap('getPreviewData', 'number',
-                  ['number', 'number']);
+                  ['number', 'number', 'number', 'number']);
   const offset = Module._malloc(sampleData.length)
   Module.HEAPU8.set(sampleData, offset)
-  const ptr = getPreviewData(offset, sampleData.length)
+  const ptr = getPreviewData(offset, sampleData.length, width, height)
 
   const size = Module.HEAPU32[ptr / 4]
   const frameDataPtr = Module.HEAPU32[ptr / 4 + 1]
   const imageRawData = Module.HEAPU8.subarray(frameDataPtr, frameDataPtr + size)
-  return imageRawData
+  return [imageRawData, width, height]
 }
 
 function drawImage(width, height, buffer) {

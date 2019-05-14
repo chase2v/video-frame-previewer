@@ -28,7 +28,7 @@ int gen_frame_from_pkt(AVCodecContext *avctx, AVFrame *frame, AVPacket *pkt)
 {
 	if (avcodec_send_packet(avctx, pkt))
 	{
-	        printf("%s %d avcodec_send_packet fail\n",__func__,__LINE__);
+	    printf("%s %d avcodec_send_packet fail\n",__func__,__LINE__);
 		return -1;
 	}
 
@@ -44,7 +44,7 @@ int gen_frame_from_pkt(AVCodecContext *avctx, AVFrame *frame, AVPacket *pkt)
 	return 0;
 }
 
-PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize)
+PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize, int width, int height)
 {
 	AVPacket av_pkt;
 	AVFrame *av_frame;
@@ -76,15 +76,15 @@ PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize)
 
 	av_codec_params.codec_type = 0;
 	av_codec_params.codec_id = AV_CODEC_ID_H264;
-	av_codec_params.codec_tag = 828601953;
-	av_codec_params.format = AV_PIX_FMT_YUV420P;
-	av_codec_params.width = 320;
-	av_codec_params.height = 240;
-	av_codec_params.bit_rate = 29347;
-	av_codec_params.bits_per_coded_sample = 24;
-	av_codec_params.bits_per_raw_sample = 8;
+	// av_codec_params.codec_tag = 828601953;
+	// av_codec_params.format = AV_PIX_FMT_YUV420P;
+	av_codec_params.width = width;
+	av_codec_params.height = height;
+	// av_codec_params.bit_rate = 29347;
+	// av_codec_params.bits_per_coded_sample = 24;
+	// av_codec_params.bits_per_raw_sample = 8;
 	av_codec_params.level = 30;
-	av_codec_params.sample_aspect_ratio = (AVRational){1, 1};
+	// av_codec_params.sample_aspect_ratio = (AVRational){1, 1};
 	av_codec_params.field_order = 0;
 	av_codec_params.color_range = 0;
 	av_codec_params.color_primaries = 2;
@@ -102,26 +102,21 @@ PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize)
 	}
 
 	sws_ctx = sws_getContext(avcodec_ctx->width,
-		avcodec_ctx->height,
-                avcodec_ctx->pix_fmt,
-                avcodec_ctx->width,
-		avcodec_ctx->height,
-		AV_PIX_FMT_RGB24,
-		SWS_BICUBIC, NULL, NULL, NULL);
+            avcodec_ctx->height,
+            avcodec_ctx->pix_fmt,
+            avcodec_ctx->width,
+		    avcodec_ctx->height,
+		    AV_PIX_FMT_RGB24,
+		    SWS_BICUBIC, NULL, NULL, NULL);
 
 	av_frame = av_frame_alloc();
-
-//	gen_frame_from_pkt(avcodec_ctx, av_frame, av_pkt);
 
 	if (gen_frame_from_pkt(avcodec_ctx, av_frame, &av_pkt) < 0) {
 		printf("Failed to generate frame");
 		goto unref;
 	}
-	/*av_pkt.data = NULL;
-	av_pkt.size = 0;
-	gen_frame_from_pkt(avcodec_ctx, av_frame, &av_pkt);*/
 
-    	resultFrame = av_frame_alloc();
+    resultFrame = av_frame_alloc();
 	result.size = scale_frame(sws_ctx, av_frame, resultFrame);
 	result.frameData = resultFrame->data[0];
 

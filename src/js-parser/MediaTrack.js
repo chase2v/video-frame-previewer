@@ -12,6 +12,10 @@ export default class MediaTrack {
     this.box = trakBox
 
     this.metadata = this._getMetadata(trakBox)
+    this.metadata = {
+      ...this.metadata,
+      ...this._parseTKHD(this.box)
+    }
 
     this.type = this._getType(trakBox)
     this.timeTable = this._parseSTTS(this._getSampleTableBox('stts'))
@@ -133,6 +137,17 @@ export default class MediaTrack {
     })
 
     return a
+  }
+
+  _parseTKHD(trakBox) {
+    const tkhdBox = this.box.children
+      .filter(child => child.type === 'tkhd')[0]
+    const tkhdData = tkhdBox.data
+
+    return {
+      width: toDigitFromUint8Array(tkhdData.slice(-8, -6)),
+      height: toDigitFromUint8Array(tkhdData.slice(-4, -2)),
+    }
   }
 
   _parseSTSD(stsdBox) {

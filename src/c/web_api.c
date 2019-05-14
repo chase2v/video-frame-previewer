@@ -14,9 +14,9 @@ int main(int argc, char *argv[])
 }
 
 EMSCRIPTEN_KEEPALIVE
-PreviewResult *getPreviewData(uint8_t *sampleData, int sampleLength)
+PreviewResult *getPreviewData(uint8_t *sampleData, int sampleLength, int width, int height)
 {
-	PreviewResult *pr = decode_sample(sampleData, sampleLength);
+	PreviewResult *pr = decode_sample(sampleData, sampleLength, width, height);
 	printf("ptr is: %p\n, frame ptr is: %p\n, data size is: %d\n",
 			pr,
 			pr->frameData,
@@ -27,7 +27,7 @@ PreviewResult *getPreviewData(uint8_t *sampleData, int sampleLength)
 
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
-    struct buffer_data *bd = (struct buffer_data *)opaque;
+    buffer_data *bd = (struct buffer_data *)opaque;
     buf_size = FFMIN(buf_size, bd->size);
 
     if (!buf_size)
@@ -43,18 +43,19 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 }
 
 EMSCRIPTEN_KEEPALIVE
-SpriteImage *getSpriteImage(uini8_t *buffer, const int buff_size, char *filename)
+SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size, char *filename)
 {
+    int ret;
     SpriteImage *rt = { 0 };
     AVFormatContext *fmt_ctx = NULL;
     AVIOContext *avio_ctx = NULL;
     uint8_t *avio_ctx_buffer = NULL;
     size_t avio_ctx_buffer_size = buff_size;
-    struct buffer_data bd = { 0 };
+    buffer_data bd = { 0, 0 };
 
     /* fill opaque structure used by the AVIOContext read callback */
     bd.ptr  = buffer;
-    bd.size = buffer_size;
+    bd.size = buff_size;
 
     if (!(fmt_ctx = avformat_alloc_context())) {
         ret = AVERROR(ENOMEM);
