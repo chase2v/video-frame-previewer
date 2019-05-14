@@ -14,11 +14,6 @@ int count = 0;
 int uw;
 int uh;
 
-struct buffer_data {
-    uint8_t *ptr;
-    size_t size; ///< size left in the buffer
-};
-
 int convertPixFmt(struct SwsContext *img_convert_ctx, AVFrame *frame, AVFrame *pFrameRGB)
 {
     //1 先进行转换,  YUV420=>RGB24:
@@ -38,7 +33,7 @@ int convertPixFmt(struct SwsContext *img_convert_ctx, AVFrame *frame, AVFrame *p
 	return 0;
 }
 
-int saveImage(uint8_t *spriteImageData, int rows)
+int saveImage(SpriteImage *spriteImage, int rows)
 {
     int imagesLen = count;
     int cols = imagesLen / rows;
@@ -53,23 +48,27 @@ int saveImage(uint8_t *spriteImageData, int rows)
 		imageGroups[i / 5][i % 5] = images[i];
 	}
 
+    // spriteImage->data = (uint8_t *)malloc(100000000);
     int len = 0;
     for (int i = 0; i < cols; i++) {
     	for (int j = 0; j < uh; j++) {
 		for (int k = 0; k < rows; k++) {
 			if (imageGroups[i][k]) {
                 for (int l = 0; l < uw * 3; l++) {
-                    *(spriteImageData + len) = *(imageGroups[i][k] + j * uw * 3 + l);
+                    *(spriteImage->data + len) = *(imageGroups[i][k] + j * uw * 3 + l);
+                    len++;
                 }
 			}
 		}
 	}
     }
 
-    return len;
+    spriteImage->size = len;
+
+    return 0;
 }
 
-static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
+static int decode_write_frame(AVCodecContext *avctx,
                               struct SwsContext *img_convert_ctx, AVFrame *frame, int *frame_count, AVPacket *pkt, int last)
 {
     int len, got_frame;
@@ -85,7 +84,7 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
         fflush(stdout);
 
         /* the picture is allocated by the decoder, no need to free it */
-        snprintf(buf, sizeof(buf), "%s-%d.bmp", outfilename, *frame_count);
+//        snprintf(buf, sizeof(buf), "%s-%d.bmp", *frame_count);
 
         /*
         pgm_save(frame->data[0], frame->linesize[0],
@@ -93,16 +92,16 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
         */
 
         // saveBMP(img_convert_ctx, frame, buf);
-	AVFrame *frameRGB;
-	frameRGB = av_frame_alloc();
-	convertPixFmt(img_convert_ctx, frame, frameRGB);
-	uw = frame->width;
-	uh = frame->height;
-//	uint8_t *cp = copyUint8Array(frameRGB->data[0]);
-	printf("ptr of data: %p", frameRGB->data[0]);
-	images[count] = frameRGB->data[0];
-	av_frame_free(&frameRGB);
-	count++;
+    	AVFrame *frameRGB;
+    	frameRGB = av_frame_alloc();
+    	convertPixFmt(img_convert_ctx, frame, frameRGB);
+    	uw = frame->width;
+    	uh = frame->height;
+//  	uint8_t *cp = copyUint8Array(frameRGB->data[0]);
+    	printf("ptr of data: %p\n", frameRGB->data[0]);
+    	images[count] = frameRGB->data[0];
+    	av_frame_free(&frameRGB);
+    	count++;
     }
 
     (*frame_count)++;
@@ -114,7 +113,7 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
     return 0;
 }
 
-AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, filename, int *stream_index)
+AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, int *stream_index)
 {
     int ret;
     const AVCodec *codec;
@@ -122,7 +121,7 @@ AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, filename, int *stream_i
     AVStream *st = NULL;
 
     /* open input */
-    if (avformat_open_input(&av_fmt_ctx, filename, NULL, NULL) < 0) {
+    if (avformat_open_input(&av_fmt_ctx, "", NULL, NULL) < 0) {
         fprintf(stderr, "Could not open input\n");
         exit(1);
     }
@@ -134,12 +133,12 @@ AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, filename, int *stream_i
     }
 
     /* dump input information to stderr */
-    av_dump_format(av_fmt_ctx, 0, filename, 0);
+    av_dump_format(av_fmt_ctx, 0, "", 0);
 
     ret = av_find_best_stream(av_fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
     if (ret < 0) {
         fprintf(stderr, "Could not find %s stream in input file '%s'\n",
-                av_get_media_type_string(AVMEDIA_TYPE_VIDEO), filename);
+                av_get_media_type_string(AVMEDIA_TYPE_VIDEO));
         return ret;
     }
 
@@ -178,7 +177,7 @@ AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, filename, int *stream_i
     return c;
 }
 
-SpriteImage *generateSprite(AVFormatContext *av_fmt_ctx, char *outfilename)
+int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage)
 {
     int ret;
     int frame_count;
@@ -186,11 +185,10 @@ SpriteImage *generateSprite(AVFormatContext *av_fmt_ctx, char *outfilename)
     struct SwsContext *img_convert_ctx;
     AVPacket avpkt;
     AVCodecContext *c;
-    SpriteImage *spriteImage;
     int stream_index;
 
     // init decoder
-    c = initDecoder(av_fmt_ctx, outfilename, &stream_index);
+    c = initDecoder(av_fmt_ctx, &stream_index);
 
     img_convert_ctx = sws_getContext(c->width, c->height,
                                      c->pix_fmt,
@@ -214,7 +212,7 @@ SpriteImage *generateSprite(AVFormatContext *av_fmt_ctx, char *outfilename)
     av_init_packet(&avpkt);
     while (av_read_frame(av_fmt_ctx, &avpkt) >= 0) {
         if(avpkt.stream_index == stream_index){
-            if (decode_write_frame(outfilename, c, img_convert_ctx, frame, &frame_count, &avpkt, 0) < 0)
+            if (decode_write_frame(c, img_convert_ctx, frame, &frame_count, &avpkt, 0) < 0)
                 exit(1);
         }
 
@@ -223,12 +221,12 @@ SpriteImage *generateSprite(AVFormatContext *av_fmt_ctx, char *outfilename)
 
     avpkt.data = NULL;
     avpkt.size = 0;
-    decode_write_frame(outfilename, c, img_convert_ctx, frame, &frame_count, &avpkt, 1);
+    decode_write_frame(c, img_convert_ctx, frame, &frame_count, &avpkt, 1);
 
     // 拼接图片
-    spriteImage->size = saveImage(spriteImage->data, 5);
+    saveImage(spriteImage, 5);
 
-    avformat_close_input(&av_fmt_ctx);
+//    avformat_close_input(&av_fmt_ctx);
 
     sws_freeContext(img_convert_ctx);
     avcodec_free_context(&c);

@@ -14,21 +14,33 @@
       RAP:
       <input type="checkbox" checked disabled>
     </label>
-    
+
     <label>
       视频链接：
       <input id="url">
     </label>
-  
+
     <label>
       预览图时间戳（s）：
       <input id="seconds">
     </label>
-  
-    <button>获取预览图</button>
+
+    <button id="preview">获取预览图</button>
   </form>
 
   <h3>Demo：获取预览拼图</h3>
+  <canvas id="canvas1" width="320" height="240" style="background: #000"></canvas>
+  <form>
+    <label>
+      上传文件：
+      <input id="uploader" type="file">
+    </label>
+
+    <label>
+      每行图片数：
+      <input id="numPerRow">
+    </label>
+  </form>
 
   <script type="module" src="./index.js"></script>
   <script src="../wasm/web_api.js"></script>

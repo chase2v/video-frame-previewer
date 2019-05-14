@@ -22,15 +22,24 @@ function init() {
 function initListeners() {
   // 获取预览图按钮
   document
-    .querySelector('button')
+    .querySelector('#preview')
     .addEventListener('click', (e) => {
       e.preventDefault()
       const url = document.querySelector('#url').value
       const seconds = document.querySelector('#seconds').value
-      
+
       getSampleData(url, seconds)
         .then(parseSample)
-        .then(([imageRawData, width, height]) => drawImage(width, height, imageRawData))
+        .then(([imageRawData, width, height]) => drawImage('#canvas', width, height, imageRawData))
+    })
+
+  // 获取上传文件
+  document
+    .querySelector('#uploader')
+    .addEventListener('input', (e) => {
+      getFileData(e.target.files[0])
+        .then(generateSprite)
+        .then((spriteRawData) => drawImage('#canvas1', 320 * 5, 240 * 6, spriteRawData))
     })
 }
 
@@ -48,7 +57,7 @@ function getSampleData(url = '', seconds = 0) {
           console.log('解析出的视频 trak box 为：', movieTrack)
         }
       })
-    
+
       const { size, offset } = movieTrack.getSampleSizeAndOffset(seconds, true)
       const sps = movieTrack.getSPS()
       const pps = movieTrack.getPPS()
@@ -98,13 +107,13 @@ function parseSample([sampleData, width, height]) {
   return [imageRawData, width, height]
 }
 
-function drawImage(width, height, buffer) {
+function drawImage(id, width, height, buffer) {
   let memCanvas = document.createElement('canvas')
   let memContext = memCanvas.getContext('2d')
-  let canvas = document.querySelector('#canvas')
+  let canvas = document.querySelector(id)
   let ctx = canvas.getContext('2d')
   canvas.width = 320
-  
+
   let imageData = ctx.createImageData(width, height);
   let k = 0;
   for (let i = 0; i < buffer.length; i++) {
@@ -133,4 +142,31 @@ function parseMoov(moovBuffer) {
 
   moov.children = extractChildren(moov)
   return moov
+}
+
+function getFileData(file) {
+  if (!file) return Promise.reject('no file')
+
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader()
+    fileReader.onloadend = (e) => {
+      resolve(new DataView(e.target.result))
+    }
+    fileReader.readAsArrayBuffer(file)
+  })
+}
+
+function generateSprite(data) {
+  const getSpriteImage = Module.cwrap('getSpriteImage', 'number',
+                  ['number', 'number']);
+  const uint8Data = new Uint8Array(data.buffer)
+  const offset = Module._malloc(uint8Data.length)
+  Module.HEAPU8.set(uint8Data, offset)
+  const ptr = getSpriteImage(offset, uint8Data.length)
+
+  const spriteData = Module.HEAPU32[ptr / 4]
+  const size = Module.HEAPU32[ptr / 4 + 1]
+  const spriteRawData = Module.HEAPU8.subarray(spriteData, spriteData + size)
+
+  return spriteRawData
 }

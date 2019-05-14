@@ -10,5 +10,5 @@ typedef struct {
     size_t size;
 } SpriteImage;
 
-SpriteImage *generateSprite(AVFormatContext *av_fmt_ctx, char *filename);
+int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage);
 

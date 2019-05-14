@@ -32,7 +32,7 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 
     if (!buf_size)
         return AVERROR_EOF;
-    printf("ptr:%p size:%zu\n", bd->ptr, bd->size);
+//    printf("ptr:%p size:%zu\n", bd->ptr, bd->size);
 
     /* copy internal buffer data to buf */
     memcpy(buf, bd->ptr, buf_size);
@@ -43,15 +43,15 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 }
 
 EMSCRIPTEN_KEEPALIVE
-SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size, char *filename)
+SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size)
 {
     int ret;
-    SpriteImage *rt = { 0 };
+    SpriteImage rt;
     AVFormatContext *fmt_ctx = NULL;
     AVIOContext *avio_ctx = NULL;
     uint8_t *avio_ctx_buffer = NULL;
-    size_t avio_ctx_buffer_size = buff_size;
-    buffer_data bd = { 0, 0 };
+    size_t avio_ctx_buffer_size = 4096;
+    buffer_data bd = { 0 };
 
     /* fill opaque structure used by the AVIOContext read callback */
     bd.ptr  = buffer;
@@ -75,7 +75,8 @@ SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size, char *filename
     }
     fmt_ctx->pb = avio_ctx;
 
-    rt->data = generateSprite(fmt_ctx, filename);
+    rt.data = (uint8_t *)malloc(100000000);
+    generateSprite(fmt_ctx, &rt);
 
 end:
     avformat_close_input(&fmt_ctx);
@@ -85,6 +86,6 @@ end:
         av_freep(&avio_ctx->buffer);
     avio_context_free(&avio_ctx);
 
-    return rt;
+    return &rt;
 }
 
