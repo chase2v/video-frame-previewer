@@ -6,6 +6,8 @@
 #include "preview.h"
 #include "generate_sprite.h"
 
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+
 int main(int argc, char *argv[])
 {
 	printf("init success!\n");
@@ -28,34 +30,68 @@ PreviewResult *getPreviewData(uint8_t *sampleData, int sampleLength, int width, 
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
     buffer_data *bd = (struct buffer_data *)opaque;
-    buf_size = FFMIN(buf_size, bd->size);
+    int len = buf_size;
+    if (bd->pos + buf_size > bd->totalSize)
+        len = bd->totalSize - bd->pos;
 
     if (!buf_size)
         return AVERROR_EOF;
-//    printf("ptr:%p size:%zu\n", bd->ptr, bd->size);
 
     /* copy internal buffer data to buf */
-    memcpy(buf, bd->ptr, buf_size);
-    bd->ptr  += buf_size;
-    bd->size -= buf_size;
+    memcpy(buf, bd->ptr + bd->pos, len);
+    bd->pos  += len;
+    bd->size -= len;
 
-    return buf_size;
+    return len;
+}
+
+static int64_t my_seek(void *opaque, int64_t offset, int whence)
+{
+    printf("offset is: %lld, whence is: %d\n", offset, whence);
+    buffer_data *bd = (struct buffer_data *)opaque;
+    int64_t new_pos = 0; // 可以为负数
+    int64_t fake_pos = 0;
+
+    switch (whence)
+    {
+        case SEEK_SET:
+            new_pos = offset;
+            break;
+        case SEEK_CUR:
+            new_pos = bd->pos + offset;
+            break;
+        case SEEK_END: // 此处可能有问题
+            new_pos = bd->totalSize + offset;
+            break;
+        default:
+            return -1;
+    }
+
+    fake_pos = min(new_pos, bd->totalSize);
+    if (fake_pos != bd->pos)
+    {
+        bd->pos = fake_pos;
+    }
+    //debug("seek pos: %d(%d)\n", offset, op->pos);
+    return new_pos;
 }
 
 EMSCRIPTEN_KEEPALIVE
-SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size)
+SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size, int cols, int interval)
 {
     int ret;
-    SpriteImage rt;
+    SpriteImage rt = {0 };
     AVFormatContext *fmt_ctx = NULL;
     AVIOContext *avio_ctx = NULL;
     uint8_t *avio_ctx_buffer = NULL;
-    size_t avio_ctx_buffer_size = 4096;
+    size_t avio_ctx_buffer_size = 32768;
     buffer_data bd = { 0 };
 
     /* fill opaque structure used by the AVIOContext read callback */
     bd.ptr  = buffer;
     bd.size = buff_size;
+    bd.totalSize = buff_size;
+    bd.pos = 0;
 
     if (!(fmt_ctx = avformat_alloc_context())) {
         ret = AVERROR(ENOMEM);
@@ -68,7 +104,7 @@ SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size)
         goto end;
     }
     avio_ctx = avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size,
-                                  0, &bd, &read_packet, NULL, NULL);
+                                  0, &bd, &read_packet, NULL, &my_seek);
     if (!avio_ctx) {
         ret = AVERROR(ENOMEM);
         goto end;
@@ -76,7 +112,7 @@ SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size)
     fmt_ctx->pb = avio_ctx;
 
     rt.data = (uint8_t *)malloc(100000000);
-    generateSprite(fmt_ctx, &rt);
+    generateSprite(fmt_ctx, &rt, interval, cols);
 
 end:
     avformat_close_input(&fmt_ctx);

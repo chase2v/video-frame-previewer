@@ -9,7 +9,7 @@
 
 int timebase;
 int avgFrameRate;
-uint8_t *images[30];
+int duration;
 int count = 0;
 int uw;
 int uh;
@@ -33,7 +33,7 @@ int convertPixFmt(struct SwsContext *img_convert_ctx, AVFrame *frame, AVFrame *p
 	return 0;
 }
 
-int saveImage(SpriteImage *spriteImage, int rows)
+int saveImage(uint8_t *images[], SpriteImage *spriteImage, int rows)
 {
     int imagesLen = count;
     int cols = imagesLen / rows;
@@ -45,10 +45,9 @@ int saveImage(SpriteImage *spriteImage, int rows)
 	int r = 0;
 	int c = 0;
 	for (int i = 0; i < imagesLen; i++) {
-		imageGroups[i / 5][i % 5] = images[i];
+		imageGroups[i / rows][i % rows] = images[i];
 	}
 
-    // spriteImage->data = (uint8_t *)malloc(100000000);
     int len = 0;
     for (int i = 0; i < cols; i++) {
     	for (int j = 0; j < uh; j++) {
@@ -64,12 +63,22 @@ int saveImage(SpriteImage *spriteImage, int rows)
     }
 
     spriteImage->size = len;
+    spriteImage->width = uw;
+    spriteImage->height = uh;
+    spriteImage->rows = cols;
 
     return 0;
 }
 
-static int decode_write_frame(AVCodecContext *avctx,
-                              struct SwsContext *img_convert_ctx, AVFrame *frame, int *frame_count, AVPacket *pkt, int last)
+static int  decodeFrame(
+        uint8_t *images[],
+        AVCodecContext *avctx,
+        struct SwsContext *img_convert_ctx,
+        AVFrame *frame,
+        int *frame_count,
+        AVPacket *pkt,
+        int interval,
+        int last)
 {
     int len, got_frame;
     char buf[1024];
@@ -79,25 +88,15 @@ static int decode_write_frame(AVCodecContext *avctx,
         fprintf(stderr, "Error while decoding frame %d\n", *frame_count);
         return len;
     }
-    if (got_frame && *frame_count % (avgFrameRate * 10) == 0) {
+    if (got_frame && *frame_count % (avgFrameRate * interval) == 0) {
         printf("Saving %sframe %3d, %d\n", last ? "last " : "", *frame_count, count);
         fflush(stdout);
 
-        /* the picture is allocated by the decoder, no need to free it */
-//        snprintf(buf, sizeof(buf), "%s-%d.bmp", *frame_count);
-
-        /*
-        pgm_save(frame->data[0], frame->linesize[0],
-                 frame->width, frame->height, buf);
-        */
-
-        // saveBMP(img_convert_ctx, frame, buf);
     	AVFrame *frameRGB;
     	frameRGB = av_frame_alloc();
     	convertPixFmt(img_convert_ctx, frame, frameRGB);
     	uw = frame->width;
     	uh = frame->height;
-//  	uint8_t *cp = copyUint8Array(frameRGB->data[0]);
     	printf("ptr of data: %p\n", frameRGB->data[0]);
     	images[count] = frameRGB->data[0];
     	av_frame_free(&frameRGB);
@@ -118,10 +117,14 @@ AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, int *stream_index)
     int ret;
     const AVCodec *codec;
     AVCodecContext *c= NULL;
-    AVStream *st = NULL;
+
+    av_fmt_ctx->probesize = 2147483647;
+    av_fmt_ctx->max_analyze_duration = 2147483647;
+
+   AVStream *st = NULL;
 
     /* open input */
-    if (avformat_open_input(&av_fmt_ctx, "", NULL, NULL) < 0) {
+    if (avformat_open_input(&av_fmt_ctx, "test", NULL, NULL) < 0) {
         fprintf(stderr, "Could not open input\n");
         exit(1);
     }
@@ -146,6 +149,7 @@ AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, int *stream_index)
     st = av_fmt_ctx->streams[*stream_index];
     timebase = st->time_base.den;
     avgFrameRate = st->avg_frame_rate.num;
+    duration = st->duration;
 
     /* find decoder for the stream */
     codec = avcodec_find_decoder(st->codecpar->codec_id);
@@ -177,21 +181,21 @@ AVCodecContext *initDecoder(AVFormatContext *av_fmt_ctx, int *stream_index)
     return c;
 }
 
-int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage)
+int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage, int interval, int cols)
 {
-    int ret;
-    int frame_count;
-    AVFrame *frame;
     struct SwsContext *img_convert_ctx;
-    AVPacket avpkt;
     AVCodecContext *c;
+    AVFrame *frame;
+    AVPacket avpkt;
     int stream_index;
+    int frame_count;
 
     // init decoder
     c = initDecoder(av_fmt_ctx, &stream_index);
+    uint8_t *images[duration / (timebase * interval)];
 
     img_convert_ctx = sws_getContext(c->width, c->height,
-                                     c->pix_fmt,
+                                     c->pix_fmt || AV_PIX_FMT_YUV420P,
                                      c->width, c->height,
                                      AV_PIX_FMT_RGB24,
                                      SWS_BICUBIC, NULL, NULL, NULL);
@@ -208,11 +212,17 @@ int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage)
         exit(1);
     }
 
-    frame_count = 0;
     av_init_packet(&avpkt);
+
+    frame_count = 0;
+    int rt = av_read_frame(av_fmt_ctx, &avpkt);
+    if (rt < 0) {
+        printf("Could not find data: %s\n", av_err2str(rt));
+        exit(1);
+    }
     while (av_read_frame(av_fmt_ctx, &avpkt) >= 0) {
         if(avpkt.stream_index == stream_index){
-            if (decode_write_frame(c, img_convert_ctx, frame, &frame_count, &avpkt, 0) < 0)
+            if (decodeFrame(images, c, img_convert_ctx, frame, &frame_count, &avpkt, interval, 0) < 0)
                 exit(1);
         }
 
@@ -221,13 +231,12 @@ int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage)
 
     avpkt.data = NULL;
     avpkt.size = 0;
-    decode_write_frame(c, img_convert_ctx, frame, &frame_count, &avpkt, 1);
+    decodeFrame(images, c, img_convert_ctx, frame, &frame_count, &avpkt, interval, 1);
 
     // 拼接图片
-    saveImage(spriteImage, 5);
+    saveImage(images, spriteImage, cols);
 
-//    avformat_close_input(&av_fmt_ctx);
-
+end:
     sws_freeContext(img_convert_ctx);
     avcodec_free_context(&c);
     av_frame_free(&frame);

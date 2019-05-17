@@ -35,11 +35,17 @@ function initListeners() {
 
   // 获取上传文件
   document
-    .querySelector('#uploader')
-    .addEventListener('input', (e) => {
-      getFileData(e.target.files[0])
-        .then(generateSprite)
-        .then((spriteRawData) => drawImage('#canvas1', 320 * 5, 240 * 6, spriteRawData))
+    .querySelector('#sprite')
+    .addEventListener('click', (e) => {
+      e.preventDefault()
+      const file = document.querySelector('#uploader').files[0]
+      const cols = document.querySelector('#cols').value || 5
+
+      if (file) {
+        getFileData(file)
+          .then(data => generateSprite(data, cols))
+          .then(([spriteRawData, width, height, rows]) => drawImage('#canvas1', width * cols, height * rows, spriteRawData))
+      }
     })
 }
 
@@ -156,17 +162,22 @@ function getFileData(file) {
   })
 }
 
-function generateSprite(data) {
+function generateSprite(data, cols = 5) {
   const getSpriteImage = Module.cwrap('getSpriteImage', 'number',
-                  ['number', 'number']);
+                  ['number', 'number', 'number', 'number']);
   const uint8Data = new Uint8Array(data.buffer)
   const offset = Module._malloc(uint8Data.length)
   Module.HEAPU8.set(uint8Data, offset)
-  const ptr = getSpriteImage(offset, uint8Data.length)
+  const ptr = getSpriteImage(offset, uint8Data.length, cols, 10)
 
   const spriteData = Module.HEAPU32[ptr / 4]
   const size = Module.HEAPU32[ptr / 4 + 1]
+  const width = Module.HEAPU32[ptr / 4 + 2]
+  const height = Module.HEAPU32[ptr / 4 + 3]
+  const rows = Module.HEAPU32[ptr / 4 + 4]
   const spriteRawData = Module.HEAPU8.subarray(spriteData, spriteData + size)
 
-  return spriteRawData
+  Module._free(offset)
+
+  return [spriteRawData, width, height, rows]
 }
