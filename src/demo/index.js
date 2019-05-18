@@ -17,21 +17,23 @@ if (Module) {
 
 function init() {
   initListeners()
+  initPreviewer()
+  initSettings()
 }
 
 function initListeners() {
   // 获取预览图按钮
-  document
-    .querySelector('#preview')
-    .addEventListener('click', (e) => {
-      e.preventDefault()
-      const url = document.querySelector('#url').value
-      const seconds = document.querySelector('#seconds').value
+  // document
+  //   .querySelector('#preview')
+  //   .addEventListener('click', (e) => {
+  //     e.preventDefault()
+  //     const url = document.querySelector('#url').value
+  //     const seconds = document.querySelector('#seconds').value
 
-      getSampleData(url, seconds)
-        .then(parseSample)
-        .then(([imageRawData, width, height]) => drawImage('#canvas', width, height, imageRawData))
-    })
+  //     _getSampleData(url, seconds)
+  //       .then(parseSample)
+  //       .then(([imageRawData, width, height]) => drawImage('#canvas', width, height, imageRawData))
+  //   })
 
   // 获取上传文件
   document
@@ -50,7 +52,216 @@ function initListeners() {
     })
 }
 
-function getSampleData(url = '', seconds = 0) {
+function initPreviewer() {
+  let startPos = 0
+  let left = 0
+  const pivot = document.querySelector('.preview-pivot')
+
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault()
+
+    e.dataTransfer.dropEffect = "move"
+  });
+  document.addEventListener('drop', (e) => e.preventDefault());
+  document.addEventListener('dragstart', (e) => {
+    console.log('dragstart')
+    // set drag image
+    var img = new Image();
+    img.src = '';
+    e.dataTransfer.setDragImage(img, 10, 10);
+
+    // log start pos
+    startPos = e.screenX
+  })
+  document.addEventListener('drag', (e) => {
+    // console.log('drag')
+
+    const curPos = e.screenX
+    pivot.style.transform = `translateX(${curPos - startPos}px)`
+
+    // update ts
+    const curPercent = curPos / window.innerWidth
+    const currentTime = updatePivotTimestamp(curPercent)
+    moveGallery(curPercent)
+    prepareGetPreview(curPercent, currentTime)
+  })
+  document.addEventListener('dragend', (e) => {
+    console.log('dragend')
+    const curPos = e.screenX
+    pivot.style.transform = `translateX(0px)`
+    left += curPos - startPos
+    pivot.style.left = `${left}px`
+    startPos = 0
+  })
+
+  // 添加预览图
+  for (let count = 30;count > 0; count--) {
+    const showcase = document.createElement('div')
+    showcase.className = 'preview-showcase'
+    // showcase.style.visibility = 'hidden'
+    showcase.innerHTML = `
+      <div class="preview-showcase__loading">
+        loading..
+      </div>
+    `
+
+    document.querySelector('.preview-gallery')
+      .appendChild(showcase)
+  }
+}
+
+const mp4 = { inited: false }
+function initMP4(url = '') {
+  if (!url) return
+
+  mp4.url = url
+  fetchMP4Root(url)
+    .then((boxes) => {
+      let movieTrack
+      boxes.forEach(box => {
+        if (box.type === 'moov') {
+          const moovBox = parseMoov(box.originData)
+          const tracks = moovBox.children
+            .filter(child => child.type === 'trak')
+            .map(trakBox => new MediaTrack(trakBox))
+          mp4.movieTrack = tracks[0]
+          console.log('解析出的视频 trak box 为：', mp4.movieTrack)
+        }
+      })
+
+      mp4.sps = mp4.movieTrack.getSPS()
+      mp4.pps = mp4.movieTrack.getPPS()
+      mp4.spsUint8 = Uint8Array.from(mp4.sps.NALUnit)
+      mp4.ppsUint8 = Uint8Array.from(mp4.pps.NALUnit)
+
+      const {
+        width,
+        height,
+      } = mp4.movieTrack.metadata
+      mp4.width = width
+      mp4.height = height
+
+      mp4.inited = true
+    })
+}
+
+function updatePivotTimestamp(percent) {
+  const duration = 600
+  const currentTime = duration * percent >> 0
+  const formattedCurrentTime = getFormattedTime(currentTime)
+  document.querySelector('.preview-pivot__current')
+    .innerHTML = formattedCurrentTime
+
+  return currentTime
+}
+
+function getFormattedTime(seconds) {
+  return `${seconds / 60 >> 0}:${seconds % 60 >> 0}`
+}
+
+const showcaseWidth = 268 // 预览图节点宽度
+const count = 30 // 预览图总张数
+const galleryWidth = showcaseWidth * count
+const totalDistance = galleryWidth - window.innerWidth
+function moveGallery(percent) {
+  document.querySelector('.preview-gallery')
+    .style.left = `-${percent * totalDistance}px`
+}
+
+function initSettings() {
+  document.querySelector('#save')
+    .addEventListener('click', e => {
+      e.preventDefault()
+
+      // 获取所有设置项值
+      const form = {}
+      document.querySelectorAll('.setting-value')
+        .forEach(elem => {
+          const item = elem.children[0]
+          if (item && item.value) {
+            form[item.id] = item.value
+          }
+        })
+
+        if (form.url) {
+          document.querySelector('video')
+            .src = form.url
+          initMP4(form.url)
+        }
+    })
+}
+
+// function showPicture(percent) {
+//   const count = 30
+//   const currentIndex = count * percent >> 0
+//   const pics = document.querySelectorAll('.preview-showcase')
+//   pics.forEach(elem => elem.style.visibility = 'hidden')
+//   const shouldShowElem = pics[currentIndex]
+//   if (shouldShowElem) shouldShowElem.style.visibility = 'visible'
+// }
+
+let timer = 0
+let lastIndex
+function prepareGetPreview(percent, seconds) {
+  const count = 30
+  const currentIndex = count * percent >> 0
+  if (currentIndex === lastIndex) return
+
+  clearTimeout(timer)
+  lastIndex = currentIndex
+
+  timer = setTimeout(() => {
+    getSampleData(seconds)
+      .then(parseSample)
+      .then(([imageRawData, width, height]) => drawImage('#canvas', width, height, imageRawData))
+      .then((url) => {
+        const img = new Image()
+        img.src = url
+        img.style.width = '100%'
+        img.style.height = '100%'
+        const pic = document.querySelectorAll('.preview-showcase')[lastIndex]
+        pic.replaceChild(img, pic.children[0])
+      })
+    console.log('It is time to get preview image', currentIndex, seconds)
+  }, 1500)
+  // const pics = document.querySelectorAll('.preview-showcase')
+  // pics.forEach(elem => elem.style.visibility = 'hidden')
+  // const shouldShowElem = pics[currentIndex]
+  // if (shouldShowElem) shouldShowElem.style.visibility = 'visible'
+}
+
+function getSampleData(seconds) {
+  if (!mp4.inited) return
+
+  const { url, movieTrack } = mp4
+  const { size, offset } = movieTrack.getSampleSizeAndOffset(seconds, true)
+
+  return fetchRangeData(url, offset, size)
+    .then(res => {
+      let sampleData = new Uint8Array(res)
+      if (sampleData[4] === 6) {
+        const seiSize = toDigitFromUint8Array(sampleData.slice(0, 4))
+        const seiData = sampleData.slice(4, seiSize)
+        sampleData = sampleData.slice(seiSize + 4)
+      }
+
+      const rt = new Uint8Array([
+        ...[0, 0, 0, 1],
+        ...mp4.spsUint8,
+        ...[0, 0, 0, 1],
+        ...mp4.ppsUint8,
+        ...[0, 0, 0, 1],
+        ...sampleData.slice(4),
+      ])
+
+      return [rt, mp4.width, mp4.height];
+    })
+    .catch(err => {
+      console.error(err)
+    })
+}
+
+function _getSampleData(url = '', seconds = 0) {
   return fetchMP4Root(url)
     .then((boxes) => {
       let movieTrack
@@ -135,6 +346,8 @@ function drawImage(id, width, height, buffer) {
   canvas.height = canvas.width * height / width;
   memContext.putImageData(imageData, 0, 0, 0, 0, width, height);
   ctx.drawImage(memCanvas, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
+
+  return canvas.toDataURL()
 }
 
 function parseMoov(moovBuffer) {

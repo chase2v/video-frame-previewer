@@ -5,28 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Document</title>
+  <link rel="stylesheet" href="./index.css">
 </head>
 <body>
-  <h3>Demo：实时预览</h3>
-  <canvas id="canvas" width="320" height="240" style="background: #000"></canvas>
-  <form>
-    <label>
-      RAP:
-      <input type="checkbox" checked disabled>
-    </label>
+  <div class="preview-container">
+    <div class="preview-gallery">
+      <!-- Add showcase here -->
+    </div>
 
-    <label>
-      视频链接：
-      <input id="url">
-    </label>
+    <div class="preview-track">
+      <span class="preview-track__duration preview-track__timestamp">00:00</span>
+    </div>
+    <div class="preview-pivot" draggable="true">
+      <span class="preview-pivot__current">00:00</span>
+      <span class="preview-pivot__decorator"></span>
+      <span class="preview-pivot__decorator"></span>
+      <span class="preview-pivot__decorator"></span>
+    </div>
+  </div>
 
-    <label>
-      预览图时间戳（s）：
-      <input id="seconds">
-    </label>
-
-    <button id="preview">获取预览图</button>
-  </form>
+  <div class="playback-container">
+    <video id="video" src="" controls></video>
+    <div class="settings">
+      <div class="settings-form">
+        <div class="setting-name-list">
+          <div class="setting-name">RAP：</div>
+          <div class="setting-name">视频链接：</div>
+        </div>
+        <div class="setting-value-list">
+          <div class="setting-value">
+            <input id="rap">
+          </div>
+          <div class="setting-value">
+            <input id="url">
+          </div>
+          <div class="setting-value">
+            <button id="save">设置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <h3>Demo：获取预览拼图</h3>
   <canvas id="canvas1" width="320" height="240" style="background: #000"></canvas>
