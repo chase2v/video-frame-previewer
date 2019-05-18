@@ -48,6 +48,8 @@ int saveImage(uint8_t *images[], SpriteImage *spriteImage, int rows)
 		imageGroups[i / rows][i % rows] = images[i];
 	}
 
+    spriteImage->data = (uint8_t *)av_malloc(imagesLen * uw * uh * 3 * sizeof(uint8_t));
+
     int len = 0;
     for (int i = 0; i < cols; i++) {
     	for (int j = 0; j < uh; j++) {

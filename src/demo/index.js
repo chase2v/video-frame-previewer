@@ -40,10 +40,11 @@ function initListeners() {
       e.preventDefault()
       const file = document.querySelector('#uploader').files[0]
       const cols = document.querySelector('#cols').value || 5
+      const interval = document.querySelector('#interval').value || 10
 
       if (file) {
         getFileData(file)
-          .then(data => generateSprite(data, cols))
+          .then(data => generateSprite(data, cols, interval))
           .then(([spriteRawData, width, height, rows]) => drawImage('#canvas1', width * cols, height * rows, spriteRawData))
       }
     })
@@ -162,22 +163,24 @@ function getFileData(file) {
   })
 }
 
-function generateSprite(data, cols = 5) {
+function generateSprite(data, cols = 5, interval = 10) {
   const getSpriteImage = Module.cwrap('getSpriteImage', 'number',
                   ['number', 'number', 'number', 'number']);
   const uint8Data = new Uint8Array(data.buffer)
   const offset = Module._malloc(uint8Data.length)
   Module.HEAPU8.set(uint8Data, offset)
-  const ptr = getSpriteImage(offset, uint8Data.length, cols, 10)
+  const ptr = getSpriteImage(offset, uint8Data.length, cols, interval)
 
   const spriteData = Module.HEAPU32[ptr / 4]
   const size = Module.HEAPU32[ptr / 4 + 1]
   const width = Module.HEAPU32[ptr / 4 + 2]
   const height = Module.HEAPU32[ptr / 4 + 3]
   const rows = Module.HEAPU32[ptr / 4 + 4]
-  const spriteRawData = Module.HEAPU8.subarray(spriteData, spriteData + size)
+  const spriteRawData = Module.HEAPU8.slice(spriteData, spriteData + size)
 
   Module._free(offset)
+  Module._free(ptr)
+  Module._free(spriteData)
 
   return [spriteRawData, width, height, rows]
 }

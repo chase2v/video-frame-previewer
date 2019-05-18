@@ -111,7 +111,6 @@ SpriteImage *getSpriteImage(uint8_t *buffer, const int buff_size, int cols, int 
     }
     fmt_ctx->pb = avio_ctx;
 
-    rt.data = (uint8_t *)malloc(100000000);
     generateSprite(fmt_ctx, &rt, interval, cols);
 
 end:
