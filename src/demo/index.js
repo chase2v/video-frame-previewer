@@ -16,40 +16,8 @@ if (Module) {
 }
 
 function init() {
-  initListeners()
   initPreviewer()
   initSettings()
-}
-
-function initListeners() {
-  // 获取预览图按钮
-  // document
-  //   .querySelector('#preview')
-  //   .addEventListener('click', (e) => {
-  //     e.preventDefault()
-  //     const url = document.querySelector('#url').value
-  //     const seconds = document.querySelector('#seconds').value
-
-  //     _getSampleData(url, seconds)
-  //       .then(parseSample)
-  //       .then(([imageRawData, width, height]) => drawImage('#canvas', width, height, imageRawData))
-  //   })
-
-  // 获取上传文件
-  document
-    .querySelector('#sprite')
-    .addEventListener('click', (e) => {
-      e.preventDefault()
-      const file = document.querySelector('#uploader').files[0]
-      const cols = document.querySelector('#cols').value || 5
-      const interval = document.querySelector('#interval').value || 10
-
-      if (file) {
-        getFileData(file)
-          .then(data => generateSprite(data, cols, interval))
-          .then(([spriteRawData, width, height, rows]) => drawImage('#canvas1', width * cols, height * rows, spriteRawData))
-      }
-    })
 }
 
 function initPreviewer() {
@@ -169,36 +137,99 @@ function moveGallery(percent) {
 }
 
 function initSettings() {
+  const form = { mode: 'realtime', source: 'url' }
+
+  document.querySelector('.setting-value--mode').querySelectorAll('.radio')
+    .forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) form.mode = e.target.value
+
+        let newValue = 'none'
+        if (form.mode === 'sprite') {
+          newValue = 'block'
+
+          if (form.source === 'url') {
+            document.querySelector('#url').parentElement.style.display = 'block'
+            document.querySelector('#file').parentElement.style.display = 'none'
+
+            document.querySelector('.setting-name--url').style.display = 'block'
+            document.querySelector('.setting-name--file').style.display = 'none'
+          } else {
+            document.querySelector('#url').parentElement.style.display = 'none'
+            document.querySelector('#file').parentElement.style.display = 'block'
+
+            document.querySelector('.setting-name--url').style.display = 'none'
+            document.querySelector('.setting-name--file').style.display = 'block'
+          }
+        } else {
+          newValue = 'none'
+
+          form.source = 'url'
+          document.querySelector('.setting-value--source').querySelectorAll('.radio')
+            .forEach(radio => {
+              if (radio.value === 'url') radio.checked = true
+            })
+          document.querySelector('#url').parentElement.style.display = 'block'
+          document.querySelector('#file').parentElement.style.display = 'none'
+
+          document.querySelector('.setting-name--url').style.display = 'block'
+          document.querySelector('.setting-name--file').style.display = 'none'
+        }
+
+        document.querySelector('.setting-name--cols').style.display = newValue
+        document.querySelector('.setting-name--interval').style.display = newValue
+        document.querySelector('.setting-name--source').style.display = newValue
+
+        document.querySelector('#cols').parentElement.style.display = newValue
+        document.querySelector('#interval').parentElement.style.display = newValue
+        document.querySelector('.setting-value--source').style.display = newValue
+      })
+    })
+
+  document.querySelector('.setting-value--source').querySelectorAll('.radio')
+    .forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) form.source = e.target.value
+
+        if (form.source === 'url') {
+          document.querySelector('#url').parentElement.style.display = 'block'
+          document.querySelector('#file').parentElement.style.display = 'none'
+
+          document.querySelector('.setting-name--url').style.display = 'block'
+          document.querySelector('.setting-name--file').style.display = 'none'
+        } else {
+          document.querySelector('#url').parentElement.style.display = 'none'
+          document.querySelector('#file').parentElement.style.display = 'block'
+
+          document.querySelector('.setting-name--url').style.display = 'none'
+          document.querySelector('.setting-name--file').style.display = 'block'
+        }
+      })
+    })
+
   document.querySelector('#save')
     .addEventListener('click', e => {
       e.preventDefault()
 
       // 获取所有设置项值
-      const form = {}
       document.querySelectorAll('.setting-value')
         .forEach(elem => {
           const item = elem.children[0]
+
           if (item && item.value) {
             form[item.id] = item.value
           }
         })
 
-        if (form.url) {
-          document.querySelector('video')
-            .src = form.url
-          initMP4(form.url)
-        }
+      console.log(form)
+
+      if (form.url) {
+        document.querySelector('video')
+          .src = form.url
+        initMP4(form.url)
+      }
     })
 }
-
-// function showPicture(percent) {
-//   const count = 30
-//   const currentIndex = count * percent >> 0
-//   const pics = document.querySelectorAll('.preview-showcase')
-//   pics.forEach(elem => elem.style.visibility = 'hidden')
-//   const shouldShowElem = pics[currentIndex]
-//   if (shouldShowElem) shouldShowElem.style.visibility = 'visible'
-// }
 
 let timer = 0
 let lastIndex
@@ -224,100 +255,73 @@ function prepareGetPreview(percent, seconds) {
       })
     console.log('It is time to get preview image', currentIndex, seconds)
   }, 1500)
-  // const pics = document.querySelectorAll('.preview-showcase')
-  // pics.forEach(elem => elem.style.visibility = 'hidden')
-  // const shouldShowElem = pics[currentIndex]
-  // if (shouldShowElem) shouldShowElem.style.visibility = 'visible'
 }
 
 function getSampleData(seconds) {
   if (!mp4.inited) return
 
   const { url, movieTrack } = mp4
-  const { size, offset } = movieTrack.getSampleSizeAndOffset(seconds, true)
+  // const { size, offset } = movieTrack.getSampleSizeAndOffset(seconds, true)
+  const sampleDataArr = movieTrack.getSampleDataArr(seconds)
 
-  return fetchRangeData(url, offset, size)
+  return Promise.all(sampleDataArr.map(sd => fetchRangeData(url, sd.offset, sd.size)))
     .then(res => {
-      let sampleData = new Uint8Array(res)
-      if (sampleData[4] === 6) {
-        const seiSize = toDigitFromUint8Array(sampleData.slice(0, 4))
-        const seiData = sampleData.slice(4, seiSize)
-        sampleData = sampleData.slice(seiSize + 4)
-      }
+      return sampleDataArr
+        .map((sd, i) => ({ ...sd, data: res[i]}))
+        .map((sd, i) => {
+          let sampleData = new Uint8Array(sd.data)
 
-      const rt = new Uint8Array([
-        ...[0, 0, 0, 1],
-        ...mp4.spsUint8,
-        ...[0, 0, 0, 1],
-        ...mp4.ppsUint8,
-        ...[0, 0, 0, 1],
-        ...sampleData.slice(4),
-      ])
+          if (i === 0) {
+            if (sampleData[4] === 6) {
+              const seiSize = toDigitFromUint8Array(sampleData.slice(0, 4))
+              const seiData = sampleData.slice(4, seiSize)
+              sampleData = sampleData.slice(seiSize + 4)
+            }
 
-      return [rt, mp4.width, mp4.height];
-    })
-    .catch(err => {
-      console.error(err)
-    })
-}
-
-function _getSampleData(url = '', seconds = 0) {
-  return fetchMP4Root(url)
-    .then((boxes) => {
-      let movieTrack
-      boxes.forEach(box => {
-        if (box.type === 'moov') {
-          const moovBox = parseMoov(box.originData)
-          const tracks = moovBox.children
-            .filter(child => child.type === 'trak')
-            .map(trakBox => new MediaTrack(trakBox))
-          movieTrack = tracks[0]
-          console.log('解析出的视频 trak box 为：', movieTrack)
-        }
-      })
-
-      const { size, offset } = movieTrack.getSampleSizeAndOffset(seconds, true)
-      const sps = movieTrack.getSPS()
-      const pps = movieTrack.getPPS()
-      const spsUint8 = Uint8Array.from(sps.NALUnit)
-      const ppsUint8 = Uint8Array.from(pps.NALUnit)
-      const {
-        width,
-        height,
-      } = movieTrack.metadata;
-
-      return fetchRangeData(url, offset, size)
-        .then(res => {
-          let sampleData = new Uint8Array(res)
-          if (sampleData[4] === 6) {
-            const seiSize = toDigitFromUint8Array(sampleData.slice(0, 4))
-            const seiData = sampleData.slice(4, seiSize)
-            sampleData = sampleData.slice(seiSize + 4)
+            sd.uint8Data = new Uint8Array([
+              ...[0, 0, 0, 1],
+              ...mp4.spsUint8,
+              ...[0, 0, 0, 1],
+              ...mp4.ppsUint8,
+              ...[0, 0, 0, 1],
+              ...sampleData.slice(4),
+            ])
+          } else {
+            sd.uint8Data = new Uint8Array([
+              ...[0, 0, 0, 1],
+              ...sampleData.slice(4),
+            ])
           }
 
-          const rt = new Uint8Array([
-            ...[0, 0, 0, 1],
-            ...spsUint8,
-            ...[0, 0, 0, 1],
-            ...ppsUint8,
-            ...[0, 0, 0, 1],
-            ...sampleData.slice(4),
-          ])
-
-          return [rt, width, height];
-        })
-        .catch(err => {
-          console.error(err)
+          return sd
         })
     })
+    .then(res => [res, movieTrack.metadata.width, movieTrack.metadata.height])
 }
 
-function parseSample([sampleData, width, height]) {
+function parseSample([sampleDataArr, width, height]) {
   const getPreviewData = Module.cwrap('getPreviewData', 'number',
                   ['number', 'number', 'number', 'number']);
-  const offset = Module._malloc(sampleData.length)
-  Module.HEAPU8.set(sampleData, offset)
-  const ptr = getPreviewData(offset, sampleData.length, width, height)
+  sampleDataArr = sampleDataArr.map(sd => {
+    const dataPtr = Module._malloc(sd.uint8Data.length)
+    Module.HEAPU8.set(sd.uint8Data, dataPtr)
+
+    return {
+      data: dataPtr,
+      size: sd.size,
+      dts: sd.dts
+    }
+  })
+  const arrPtr = Module._malloc(sampleDataArr.length * 12)
+  let uint32SampleDataArr = []
+  sampleDataArr.forEach(sd => {
+    uint32SampleDataArr.push(sd.data)
+    uint32SampleDataArr.push(sd.size)
+    uint32SampleDataArr.push(sd.dts)
+  })
+  uint32SampleDataArr = new Uint32Array(uint32SampleDataArr)
+  Module.HEAPU32.set(uint32SampleDataArr, arrPtr / 4)
+  const ptr = getPreviewData(arrPtr, sampleDataArr.length, width, height)
 
   const size = Module.HEAPU32[ptr / 4]
   const frameDataPtr = Module.HEAPU32[ptr / 4 + 1]
@@ -328,7 +332,7 @@ function parseSample([sampleData, width, height]) {
 function drawImage(id, width, height, buffer) {
   let memCanvas = document.createElement('canvas')
   let memContext = memCanvas.getContext('2d')
-  let canvas = document.querySelector(id)
+  let canvas = document.createElement('canvas')
   let ctx = canvas.getContext('2d')
   canvas.width = 320
 

@@ -44,7 +44,7 @@ int gen_frame_from_pkt(AVCodecContext *avctx, AVFrame *frame, AVPacket *pkt)
 	return 0;
 }
 
-PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize, int width, int height)
+PreviewResult *decode_sample(SampleData sampleDataArr[], int count, int width, int height)
 {
 	AVPacket av_pkt;
 	AVFrame *av_frame;
@@ -58,10 +58,10 @@ PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize, int width,
 	AVFrame *resultFrame;
 
 	av_init_packet(&av_pkt);
-	av_pkt.data = sampleData;
+	/*av_pkt.data = sampleData;
 	av_pkt.size = sampleDataSize;
 	av_pkt.duration = 1000;
-	av_pkt.pos = 0;
+	av_pkt.pos = 0;*/
 
 	av_codec = avcodec_find_decoder(AV_CODEC_ID_H264);
 	if (!av_codec) {
@@ -111,10 +111,18 @@ PreviewResult *decode_sample(uint8_t *sampleData, int sampleDataSize, int width,
 
 	av_frame = av_frame_alloc();
 
-	if (gen_frame_from_pkt(avcodec_ctx, av_frame, &av_pkt) < 0) {
-		printf("Failed to generate frame");
-		goto unref;
-	}
+    for (int i = 0; i < count; i++) {
+        av_pkt.data = sampleDataArr[i].data;
+        av_pkt.size = sampleDataArr[i].size;
+        av_pkt.dts = sampleDataArr[i].dts;
+        printf("pkt info: %p %d %d\n", av_pkt.data, av_pkt.size, av_pkt.dts);
+        if (gen_frame_from_pkt(avcodec_ctx, av_frame, &av_pkt) < 0) {
+	    	printf("Failed to generate frame");
+	    	goto unref;
+    	}
+        printf("gen frame succes %d\n", i);
+	    av_packet_unref(&av_pkt);
+    }
 
     resultFrame = av_frame_alloc();
 	result.size = scale_frame(sws_ctx, av_frame, resultFrame);

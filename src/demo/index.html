@@ -29,15 +29,33 @@
     <div class="settings">
       <div class="settings-form">
         <div class="setting-name-list">
-          <div class="setting-name">RAP：</div>
-          <div class="setting-name">视频链接：</div>
+          <div class="setting-name">预览模式：</div>
+          <div class="setting-name setting-name--source" style="display: none">视频源：</div>
+          <div class="setting-name setting-name--url">视频链接：</div>
+          <div class="setting-name setting-name--file" style="display: none">视频文件：</div>
+          <div class="setting-name setting-name--cols" style="display: none">每行图片数：</div>
+          <div class="setting-name setting-name--interval" style="display: none">间隔时间(s)：</div>
         </div>
         <div class="setting-value-list">
-          <div class="setting-value">
-            <input id="rap">
+          <div class="setting-value setting-value--mode">
+            <label><input class="radio" name="mode" type="radio" value="realtime" checked/>实时预览</label>
+            <label><input class="radio" name="mode" type="radio" value="sprite" />预览拼图</label>
+          </div>
+          <div class="setting-value setting-value--source" style="display: none">
+            <label><input class="radio" name="source" type="radio" value="url" checked/>视频链接</label>
+            <label><input class="radio" name="source" type="radio" value="file" />视频文件</label>
           </div>
           <div class="setting-value">
             <input id="url">
+          </div>
+          <div class="setting-value" style="display: none">
+            <input id="file" type="file">
+          </div>
+          <div class="setting-value" style="display: none">
+            <input id="cols">
+          </div>
+          <div class="setting-value" style="display: none">
+            <input id="interval">
           </div>
           <div class="setting-value">
             <button id="save">设置</button>
@@ -46,27 +64,6 @@
       </div>
     </div>
   </div>
-
-  <h3>Demo：获取预览拼图</h3>
-  <canvas id="canvas1" width="320" height="240" style="background: #000"></canvas>
-  <form>
-    <label>
-      上传文件：
-      <input id="uploader" type="file">
-    </label>
-
-    <label>
-      每行图片数：
-      <input id="cols">
-    </label>
-
-    <label>
-      间隔(s)：
-      <input id="interval">
-    </label>
-
-    <button id="sprite">获取拼图</button>
-  </form>
 
   <script type="module" src="./index.js"></script>
   <script src="../wasm/web_api.js"></script>

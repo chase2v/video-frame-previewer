@@ -16,9 +16,9 @@ int main(int argc, char *argv[])
 }
 
 EMSCRIPTEN_KEEPALIVE
-PreviewResult *getPreviewData(uint8_t *sampleData, int sampleLength, int width, int height)
+PreviewResult *getPreviewData(SampleData sampleDataArr[], int count, int width, int height)
 {
-	PreviewResult *pr = decode_sample(sampleData, sampleLength, width, height);
+	PreviewResult *pr = decode_sample(sampleDataArr, count, width, height);
 	printf("ptr is: %p\n, frame ptr is: %p\n, data size is: %d\n",
 			pr,
 			pr->frameData,

@@ -42,7 +42,7 @@ export default class MediaTrack {
       }, this.syncTable[this.syncTable.length - 1].sampleNumber)
       i--
     }
-    
+
     const chunkIndex = this.chunkTable.chunkIndexes[i].chunkIndex
     const chunkOffsetIndex = this.chunkTable.chunkIndexes[i].chunkOffsetIndex
     const chunkOffset = this.chunkOffsetBox[chunkIndex].chunkOffset
@@ -55,6 +55,50 @@ export default class MediaTrack {
       offset,
       size: this.sizeTable.entries[i].entrySize
     }
+  }
+
+  getSampleDataArr(seconds) {
+    // 1. 通过秒数定位前一个 idr 帧 offset
+    // 2. 通过秒数定位对应的帧 cur offset
+    // 3. 获取中间所有帧的 offset size dts [idr, ..., cur]
+    // 4. 遍历获取所有帧数据
+    let ret = []
+    let curIdx = 0
+    while (seconds * this.metadata.timescale > this._formattedTimeTable[curIdx]) {
+      curIdx++
+    }
+    let idrIdx
+    this.syncTable.forEach(entry => {
+      if (entry.sampleNumber <= curIdx) {
+        idrIdx = entry.sampleNumber - 1
+      }
+    })
+    for (let i = idrIdx; i <= curIdx; i++) {
+      const {
+        chunkIndex,
+        chunkOffsetIndex
+      } = this.chunkTable.chunkIndexes[i]
+      ret.push({
+        chunkIndex,
+        chunkOffsetIndex,
+        index: i
+      })
+    }
+    ret = ret.map(sd => {
+      const chunkOffset = this.chunkOffsetBox[sd.chunkIndex].chunkOffset
+      let offset = chunkOffset
+      for (let i = sd.index - sd.chunkOffsetIndex; i < sd.index; i++) {
+        offset += this.sizeTable.entries[i].entrySize
+      }
+      return {
+        ...sd,
+        offset,
+        size: this.sizeTable.entries[sd.index].entrySize,
+        dts: this._formattedTimeTable[sd.index]
+      }
+    })
+
+    return ret
   }
 
   // get sequence parameter sets
