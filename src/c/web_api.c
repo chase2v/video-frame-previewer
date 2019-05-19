@@ -47,7 +47,6 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 
 static int64_t my_seek(void *opaque, int64_t offset, int whence)
 {
-    printf("offset is: %lld, whence is: %d\n", offset, whence);
     buffer_data *bd = (struct buffer_data *)opaque;
     int64_t new_pos = 0; // 可以为负数
     int64_t fake_pos = 0;

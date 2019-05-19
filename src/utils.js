@@ -24,7 +24,7 @@ export function extractChildren(parent) {
   let parentData = parent.data.slice(8)
 
   const children = []
-  
+
   while (parentData.length) {
     const boxSize =  Number('0x' + Array.from(parentData.slice(0, 4)).map(n => ('00' + n.toString(16)).slice(-2)).join(''))
     const boxType = Array.from(parentData.slice(4, 8)).map(n => ('\\u00' + ('00' + n.toString(16)).slice(-2))).join('')
@@ -118,8 +118,10 @@ export async function fetchMP4Root(url, cb) {
  const boxes = []
  while (i < mp4Size) {
    let box = await getBoxSizeAndType(url, i)
-   const boxData = await fetchRangeData(url, i, i + box.size - 1)
-   box = createBox(box.type, boxData)
+   if (box.type !== 'mdat') {
+     const boxData = await fetchRangeData(url, i, i + box.size - 1)
+     box = createBox(box.type, boxData)
+   }
    boxes.push(box)
    i += box.size
  }

@@ -13,6 +13,7 @@ typedef struct {
     size_t width;
     size_t height;
     size_t rows;
+    size_t count;
 } SpriteImage;
 
 int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage, int interval, int cols);

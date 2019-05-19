@@ -36,9 +36,8 @@ int convertPixFmt(struct SwsContext *img_convert_ctx, AVFrame *frame, AVFrame *p
 int saveImage(uint8_t *images[], SpriteImage *spriteImage, int rows)
 {
     int imagesLen = count;
-    int cols = imagesLen / rows;
+    int cols = imagesLen / rows + 1;
     rows = imagesLen < rows ? imagesLen : rows;
-    if (!cols) cols++;
 
 	// 先分组
 	uint8_t *imageGroups[cols][rows];
@@ -48,18 +47,22 @@ int saveImage(uint8_t *images[], SpriteImage *spriteImage, int rows)
 		imageGroups[i / rows][i % rows] = images[i];
 	}
 
-    spriteImage->data = (uint8_t *)av_malloc(imagesLen * uw * uh * 3 * sizeof(uint8_t));
+    spriteImage->data = (uint8_t *)av_malloc(cols * rows * uw * uh * 3 * sizeof(uint8_t));
 
     int len = 0;
+    int cur = 0;
     for (int i = 0; i < cols; i++) {
     	for (int j = 0; j < uh; j++) {
 		for (int k = 0; k < rows; k++) {
-			if (imageGroups[i][k]) {
-                for (int l = 0; l < uw * 3; l++) {
+            for (int l = 0; l < uw * 3; l++) {
+			    if (i * rows + k < imagesLen) {
                     *(spriteImage->data + len) = *(imageGroups[i][k] + j * uw * 3 + l);
-                    len++;
+                } else {
+                    // 填充白色
+                    *(spriteImage->data + len) = 255;
                 }
-			}
+                len++;
+            }
 		}
 	}
     }
@@ -68,6 +71,7 @@ int saveImage(uint8_t *images[], SpriteImage *spriteImage, int rows)
     spriteImage->width = uw;
     spriteImage->height = uh;
     spriteImage->rows = cols;
+    spriteImage->count = imagesLen;
 
     return 0;
 }
@@ -99,7 +103,7 @@ static int  decodeFrame(
     	convertPixFmt(img_convert_ctx, frame, frameRGB);
     	uw = frame->width;
     	uh = frame->height;
-    	printf("ptr of data: %p\n", frameRGB->data[0]);
+//    	printf("ptr of data: %p\n", frameRGB->data[0]);
     	images[count] = frameRGB->data[0];
     	av_frame_free(&frameRGB);
     	count++;
@@ -222,6 +226,7 @@ int generateSprite(AVFormatContext *av_fmt_ctx, SpriteImage *spriteImage, int in
         printf("Could not find data: %s\n", av_err2str(rt));
         exit(1);
     }
+    count = 0;
     while (av_read_frame(av_fmt_ctx, &avpkt) >= 0) {
         if(avpkt.stream_index == stream_index){
             if (decodeFrame(images, c, img_convert_ctx, frame, &frame_count, &avpkt, interval, 0) < 0)
