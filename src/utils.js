@@ -94,16 +94,16 @@ export function getSamplePosition(stream) {
   }
 }
 
-export function fetchRangeData(url, start, size) {
+export function fetchRangeData(url, offset, size) {
   return new Promise((resolve) => {
-    var xhr = new XMLHttpRequest();
+    const xhr = new XMLHttpRequest()
     xhr.onload = (e) => {
       resolve(xhr.response)
     }
-    xhr.open("GET", url);
-    xhr.setRequestHeader('Range', `bytes=${start}-${start + size - 1}`)
-    xhr.responseType = "arraybuffer";
-    xhr.send();
+    xhr.open('GET', url)
+    xhr.setRequestHeader('Range', `bytes=${offset}-${offset + size - 1}`)
+    xhr.responseType = 'arraybuffer'
+    xhr.send()
   })
 }
 /**
