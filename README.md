@@ -1,3 +1,5 @@
-## 开发
+# video-frame-previewer
 
-`http-server .`
+It's a demo of previewing video's picture in browser which is realtime and implements by WebAssembly.
+
+See: [Demo](https://vvangchen.github.io/video-frame-previewer/)
