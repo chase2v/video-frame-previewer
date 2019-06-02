@@ -20,7 +20,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 22px;
+  height: 10px;
   background: #1b1b1b;
 
   display: flex;
@@ -38,8 +38,8 @@ body {
   left: 0;
   bottom: 0;
   background: #fff;
-  width: 10px;
-  height: 22px;
+  width: 22px;
+  height: 10px;
   border-radius: 4px;
 
   display: flex;
@@ -85,8 +85,9 @@ body {
 
 .playback-container {
   position: relative;
+  padding-bottom: 50px;
   width: 100%;
-  height: calc(100vh - 200px);
+  /* height: calc(100vh - 200px); */
   text-align: center;
   background: #000;
 }

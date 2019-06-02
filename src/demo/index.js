@@ -251,7 +251,7 @@ function moveGallery(percent) {
   const galleryWidth = showcaseWidth * count
   const totalDistance = galleryWidth - window.innerWidth
   document.querySelector('.preview-gallery')
-    .style.left = `-${percent * totalDistance}px`
+    .style.transform = `translateX(-${percent * totalDistance}px)`
 }
 
 let currentIndex
