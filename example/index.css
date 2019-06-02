@@ -1,0 +1,128 @@
+:root {
+  background: #fff;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.preview-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: #000;
+  cursor: pointer;
+  overflow: hidden;
+}
+.preview-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  background: #1b1b1b;
+
+  display: flex;
+  justify-content: flex-end;
+}
+.preview-track__timestamp {
+  position: relative;
+  top: -14px;
+  line-height: 12px;
+  font-size: 12px;
+  color: #fff;
+}
+.preview-pivot {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background: #fff;
+  width: 10px;
+  height: 22px;
+  border-radius: 4px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.preview-pivot__current {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 12px;
+  font-size: 12px;
+  color: #fff;
+}
+.preview-pivot__decorator {
+  margin-top: 1px;
+  width: 6px;
+  height: 1px;
+  background: #b1b1b1;
+}
+.preview-gallery {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px;
+  white-space: nowrap;
+}
+.preview-showcase {
+  display: inline-block;
+  width: 256px;
+  height: 144px;
+  vertical-align: middle;
+  color: #fff;
+  background: #000;
+  border: 6px #1b1b1b solid;
+}
+.preview-showcase img {
+  object-fit: contain;
+}
+
+
+.playback-container {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 200px);
+  text-align: center;
+  background: #000;
+}
+#video {
+  display: inline-block;
+  margin-top: 50px;
+  width: 800px;
+  height: 540px;
+  background: #1b1b1b;
+}
+.settings {
+  margin: 50px auto 0;
+  box-sizing: border-box;
+  padding: 16px 10px;
+  width: 800px;
+  line-height: 40px;
+  text-align: left;
+  color: #fff;
+  background: #1b1b1b;
+}
+.settings-form {
+  display: flex;
+}
+.setting-name-list {
+  flex: 0 0 auto;
+}
+.setting-name {
+  padding-right: 8px;
+  text-align: right;
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+}
+.setting-value-list {
+  flex: 1 1 auto;
+}
+.setting-value {
+
+}

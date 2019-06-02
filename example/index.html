@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <link rel="stylesheet" href="./index.css">
+  <script src="../dist/wasm/web_api.js"></script>
+</head>
+<body>
+  <div class="preview-container">
+    <div class="preview-gallery">
+      <!-- Add showcase here -->
+    </div>
+
+    <div class="preview-track">
+      <span class="preview-track__duration preview-track__timestamp">00:00</span>
+    </div>
+    <div class="preview-pivot" draggable="true">
+      <span class="preview-pivot__current">00:00</span>
+      <span class="preview-pivot__decorator"></span>
+      <span class="preview-pivot__decorator"></span>
+      <span class="preview-pivot__decorator"></span>
+    </div>
+  </div>
+
+  <div class="playback-container">
+    <video id="video" src="" controls></video>
+    <div class="settings">
+      <div class="settings-form">
+        <div class="setting-name-list">
+          <div class="setting-name setting-name--url">视频链接：</div>
+        </div>
+        <div class="setting-value-list">
+          <div class="setting-value">
+            <input id="url">
+          </div>
+          <div class="setting-value">
+            <button id="save">设置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./index.js"></script>
+</body>
+</html>
